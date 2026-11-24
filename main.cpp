@@ -1,8 +1,11 @@
 #include <bits/stdc++.h>
 #include <cassert>
 using namespace std;
+
+// we are using integer ticks because if 0.1 and 0.2 are added then it will be 0.30000000000000004 in floating point representation but in integer ticks it will be 30 which is correct.
+// So even if buyer and seller prices are same the trade will not happen because of floating point precision issues.
+// So to avoid such floating point precision issues we are using integer ticks.
 const long long ticks_per_rupee=100;
-// We are converting the price to integer ticks to avoid floating point precision issues.
 
 enum class Side{ 
     Buy,
