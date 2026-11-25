@@ -1,25 +1,28 @@
 #include <bits/stdc++.h>
 #include <cassert>
+#include <list>
 using namespace std;
 
 // we are using integer ticks because if 0.1 and 0.2 are added then it will be 0.30000000000000004 in floating point representation but in integer ticks it will be 30 which is correct.
 // So even if buyer and seller prices are same the trade will not happen because of floating point precision issues.
 // So to avoid such floating point precision issues we are using integer ticks.
+
 const long long ticks_per_rupee=100;
 
 enum class Side{ 
     Buy,
     Sell
 };
-struct Order {
+struct Order{
     int id;
     Side side;
     long long price;
     int quantity;
 };
-map<long long,vector<Order>,greater<long long>>bids;
-map<long long,vector<Order>>asks;
-struct Trade {
+map<long long,list<Order>,greater<long long>>bids;
+map<long long,list<Order>>asks;
+unordered_map<int,Order>mp;
+struct Trade{
     int buyOrderId;
     int sellOrderId;
     long long price;
@@ -43,6 +46,9 @@ void printOrder(const Order&o){
 }
 bool parse_price(const string &price_str,long long &price){
     price=0;
+    if(price_str=="MKT"){
+        return true;
+    }
     for(auto c:price_str){
         if(!isdigit((unsigned char)c) and c!='.'){  // If price is negative or not a number then reject the order
             return false;
@@ -118,7 +124,7 @@ void addOrder(const Order &o){
         asks[o.price].push_back(o);
     }
 }
-void processOrder(Order o){
+void processOrder(Order o,bool is_market){
     if(o.side==Side::Buy){
         while(!asks.empty()){
             auto price=asks.begin()->first;
@@ -137,7 +143,7 @@ void processOrder(Order o){
                 else{
                     Trades.push_back({o.id,ord.id,ord.price,ord.quantity});
                     o.quantity-=ord.quantity;
-                    orders.erase(orders.begin());
+                    orders.pop_front();
                 }
             }
             if(orders.empty()){
@@ -166,7 +172,7 @@ void processOrder(Order o){
                 else{
                     Trades.push_back({ord.id,o.id,ord.price,ord.quantity});
                     o.quantity-=ord.quantity;
-                    orders.erase(orders.begin());
+                    orders.pop_front();
                 }
             }
             if(orders.empty()){
@@ -177,9 +183,76 @@ void processOrder(Order o){
             }
         }
     }
-    if(o.quantity>0){
+    if(o.quantity>0 and !is_market){
         addOrder(o);
     }
+    return;
+}
+void cancelOrder(int id){
+    if(!mp.count(id)){
+        cout<<"Cancel failed: #"<<id<<" not found\n";
+        return;
+    }
+    auto &o=mp[id];
+    if(o.side==Side::Buy){
+        long long price=o.price;
+        auto row=bids.find(price);
+        if(row==bids.end()){
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+            return; // That order has already been fully traded
+        }
+        auto &orders=row->second;
+        if(orders.empty()){
+            bids.erase(row);
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+            return;
+        }
+        bool found=false;
+        for(auto it=orders.begin();it!=orders.end();++it){
+            if(it->id==id){
+                found=true;
+                orders.erase(it);
+                break;
+            }
+        }
+        if(!found){
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+            return;
+        }
+        if(orders.empty()){
+            bids.erase(row);
+        }
+    }
+    else{
+        long long price=o.price;
+        auto row=asks.find(price);
+        if(row==asks.end()){
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+           return; // That order has already been fully traded
+        }
+        auto &orders=row->second;
+        if(orders.empty()){
+            asks.erase(row);
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+            return;
+        }
+        bool found=false;
+        for(auto it=orders.begin();it!=orders.end();++it){
+            if(it->id==id){
+                found=true;
+                orders.erase(it);
+                break;
+            }
+        }
+        if(!found){
+            cout<<"Cancel failed: #"<<id<<" not found\n";
+            return;
+        }
+        if(orders.empty()){
+            asks.erase(row);
+        }
+    }
+    mp.erase(id);
     return;
 }
 void print_book(){
@@ -207,6 +280,7 @@ void printTrades(){
 // Prices which are not multiples of tick_size will be rejected
 // Prices which are greater than LLONG_MAX will be rejected
 // Prices which are not having decimal places or whole number places are considered as valid prices
+// As cancel order is not an new market order we are not assigning a new id to that order
 
 int main(){
     ios::sync_with_stdio(false);
@@ -226,10 +300,19 @@ int main(){
     assert(!parse_price("-5.00",p));
     assert(!parse_price("99999999999999999999",p));
 
-    string side_str,price_str;
-    int quantity;
+    string cmd;
     int id_assign=1;
-    while(cin>>side_str>>quantity>>price_str){
+    while(cin>>cmd){
+        if(cmd=="CANCEL"){
+            int id;
+            cin>>id;
+            cancelOrder(id);
+            continue;
+        }
+        string price_str;
+        int quantity;
+        cin>>quantity>>price_str;
+        string side_str=cmd;
         Order o;
         o.id=id_assign;
         id_assign++;
@@ -242,6 +325,14 @@ int main(){
             cout<<"Invalid price\n";
             continue;
         }
+        bool is_market=false;
+        if(price_str=="MKT"){
+            if(side_str=="SELL"){
+                o.price=0;
+            }
+            else o.price=LLONG_MAX;
+            is_market=true;
+        }
         o.quantity=quantity;
         if(side_str=="BUY"){
             o.side=Side::Buy;
@@ -249,7 +340,8 @@ int main(){
         else if(side_str=="SELL"){
             o.side=Side::Sell;
         }
-        processOrder(o);
+        mp[o.id]=o;
+        processOrder(o,is_market);
     }
     printTrades();
     print_book();

@@ -1,0 +1,4 @@
+SELL 10 101.00    → #1
+SELL 20 101.00    → #2
+BUY 10 101.00     → #3: trades 10 with #1. #1 is filled. Row 101.00 is now [#2].
+CANCEL 1
