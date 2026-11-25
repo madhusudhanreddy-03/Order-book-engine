@@ -17,6 +17,8 @@ struct Order {
     long long price;
     int quantity;
 };
+map<long long,vector<Order>,greater<long long>>bids;
+map<long long,vector<Order>>asks;
 struct Trade {
     int buyOrderId;
     int sellOrderId;
@@ -103,6 +105,29 @@ bool validate_order(const string &side_str,int quantity){
     }
     return true;
 }
+void addorder(const Order &o){
+    if(o.side==Side::Buy){
+        bids[o.price].push_back(o);
+    }
+    else{
+        asks[o.price].push_back(o);
+    }
+}
+void print_book(){
+    cout<<"BIDS\n";
+    for(auto &[price,orders]:bids){
+        for(auto &o:orders){
+            printOrder(o);
+        }
+    }
+    cout<<"ASKS:\n";
+    for(auto &[price,orders]:asks){
+        for(auto &o:orders){
+            printOrder(o);
+        }
+    }
+}
+
 
 // If the prices are negative or zero the order will be rejected
 // Prices which are not multiples of tick_size will be rejected
@@ -114,23 +139,22 @@ int main(){
     cin.tie(nullptr);
 
     long long p;
-    assert(parse_price("101.05", p) && p == 10105);
-    assert(parse_price("101.5", p)  && p == 10150);
-    assert(parse_price("101", p)    && p == 10100);
-    assert(parse_price("0.05", p)   && p == 5);
-    assert(parse_price(".5", p)     && p == 50);
-    assert(parse_price("5.", p)     && p == 500);
-    assert(!parse_price("0.00", p));
-    assert(!parse_price("1..5", p));
-    assert(!parse_price(".", p));
-    assert(!parse_price("101.055", p));
-    assert(!parse_price("-5.00", p));
-    assert(!parse_price("99999999999999999999", p));
+    assert(parse_price("101.05",p) && p == 10105);
+    assert(parse_price("101.5",p)  && p == 10150);
+    assert(parse_price("101",p)    && p == 10100);
+    assert(parse_price("0.05",p)   && p == 5);
+    assert(parse_price(".5",p)     && p == 50);
+    assert(parse_price("5.",p)     && p == 500);
+    assert(!parse_price("0.00",p));
+    assert(!parse_price("1..5",p));
+    assert(!parse_price(".",p));
+    assert(!parse_price("101.055",p));
+    assert(!parse_price("-5.00",p));
+    assert(!parse_price("99999999999999999999",p));
 
     string side_str,price_str;
     int quantity;
     int id_assign=1;
-    vector<Order>orders;
     while(cin>>side_str>>quantity>>price_str){
         Order o;
         o.id=id_assign;
@@ -151,9 +175,7 @@ int main(){
         else if(side_str=="SELL"){
             o.side=Side::Sell;
         }
-        orders.push_back(o);
+        addorder(o);
     }
-    for(const auto &o:orders){
-        printOrder(o);
-    }
+    print_book();
 }
