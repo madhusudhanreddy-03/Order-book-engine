@@ -1,2 +1,1 @@
-g++ -std=c++17 -O2 -Wall main.cpp -o ob
->> Get-Content orders.txt | .\ob.exe
+g++ -std=c++17 -O2 -Wall main.cpp -o ob; if ($?) { Get-Content orders.txt | .\ob.exe }

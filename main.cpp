@@ -25,15 +25,20 @@ struct Trade {
     long long price;
     int quantity;
 };
-void printOrder(const Order&o){
+vector<Trade>Trades;
+string formatPrice(long long price){
     string value;
-    long long whole=o.price/ticks_per_rupee;
-    long long paise=o.price%ticks_per_rupee;
+    long long whole=price/ticks_per_rupee;
+    long long paise=price%ticks_per_rupee;
     string paise_str=to_string(paise);
     if(paise<10){
         paise_str='0'+paise_str;
     }
     value=to_string(whole)+'.'+paise_str;
+    return value;
+}
+void printOrder(const Order&o){
+    string value=formatPrice(o.price);
     cout<<"#"<<o.id<<' '<<(o.side==Side::Buy?"BUY":"SELL")<<' '<<o.quantity<<' '<<'@'<<' '<<value<<'\n';
 }
 bool parse_price(const string &price_str,long long &price){
@@ -105,7 +110,7 @@ bool validate_order(const string &side_str,int quantity){
     }
     return true;
 }
-void addorder(const Order &o){
+void addOrder(const Order &o){
     if(o.side==Side::Buy){
         bids[o.price].push_back(o);
     }
@@ -113,8 +118,72 @@ void addorder(const Order &o){
         asks[o.price].push_back(o);
     }
 }
+void processOrder(Order o){
+    if(o.side==Side::Buy){
+        while(!asks.empty()){
+            auto price=asks.begin()->first;
+            auto &orders=asks.begin()->second;
+            if(o.price<price){
+                break;
+            }
+            while(o.quantity>0 and !orders.empty()){
+                Order &ord=orders.front();
+                if(o.quantity<ord.quantity){
+                    Trades.push_back({o.id,ord.id,ord.price,o.quantity});
+                    ord.quantity-=o.quantity;
+                    o.quantity=0;
+                    break;
+                }
+                else{
+                    Trades.push_back({o.id,ord.id,ord.price,ord.quantity});
+                    o.quantity-=ord.quantity;
+                    orders.erase(orders.begin());
+                }
+            }
+            if(orders.empty()){
+                asks.erase(asks.begin());
+            }
+            if(o.quantity<=0){
+                break;
+            }
+        }
+    }
+    else{
+        while(!bids.empty()){
+            auto price=bids.begin()->first;
+            auto &orders=bids.begin()->second;
+            if(o.price>price){
+                break;
+            }
+            while(o.quantity>0 and !orders.empty()){
+                Order &ord=orders.front();
+                if(o.quantity<ord.quantity){
+                    Trades.push_back({ord.id,o.id,ord.price,o.quantity});
+                    ord.quantity-=o.quantity;
+                    o.quantity=0;
+                    break;
+                }
+                else{
+                    Trades.push_back({ord.id,o.id,ord.price,ord.quantity});
+                    o.quantity-=ord.quantity;
+                    orders.erase(orders.begin());
+                }
+            }
+            if(orders.empty()){
+                bids.erase(bids.begin());
+            }
+            if(o.quantity<=0){
+                break;
+            }
+        }
+    }
+    if(o.quantity>0){
+        addOrder(o);
+    }
+    return;
+}
 void print_book(){
-    cout<<"BIDS\n";
+    cout<<"BIDS:\n";
     for(auto &[price,orders]:bids){
         for(auto &o:orders){
             printOrder(o);
@@ -127,7 +196,12 @@ void print_book(){
         }
     }
 }
-
+void printTrades(){
+    for(auto &t:Trades){
+        string price=formatPrice(t.price);
+        cout<<"TRADE buy #"<<t.buyOrderId<<" sell #"<<t.sellOrderId<<" "<<t.quantity<<" @ "<<price<<'\n';
+    }
+}
 
 // If the prices are negative or zero the order will be rejected
 // Prices which are not multiples of tick_size will be rejected
@@ -175,7 +249,8 @@ int main(){
         else if(side_str=="SELL"){
             o.side=Side::Sell;
         }
-        addorder(o);
+        processOrder(o);
     }
+    printTrades();
     print_book();
 }
