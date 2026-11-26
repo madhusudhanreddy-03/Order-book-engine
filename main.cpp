@@ -7,6 +7,21 @@ using namespace std;
 // So even if buyer and seller prices are same the trade will not happen because of floating point precision issues.
 // So to avoid such floating point precision issues we are using integer ticks.
 
+// An order simply tells how many stocks a person wants to buy or sell and the price they are willing to pay or accept. A buyer specifies the maximum price they can pay per stock, while a seller specifies the minimum price they are willing to accept.
+// A market order is used when someone wants to buy or sell stocks immediately at the best price currently available in the market, without setting any specific price limit. The buyer is ready to pay the available price, while the seller is ready to accept the best available buying price. 
+
+/*
+Input:
+    BUY|SELL quantity price
+    BUY|SELL quantity MKT
+    CANCEL id
+
+Output:
+    Invalid order/price and failed cancellation messages are printed while reading input.
+    After processing all commands, all trades are printed first,
+    followed by the remaining order book.
+*/
+
 const long long ticks_per_rupee=100;
 
 enum class Side{ 
@@ -19,8 +34,15 @@ struct Order{
     long long price;
     int quantity;
 };
+
+// As the first priority is given to buyers whose bid is more we are adding a comparator to the bids map as by default it stores in asc order of keys here (prices) ...
+// Every price level in the book must contain at least one order.
+// Whenever the last order at a price level is removed, we erase that row.
 map<long long,list<Order>,greater<long long>>bids;
 map<long long,list<Order>>asks;
+// This map stores each order using its ID, making cancellation faster without searching the entire order book
+// Fully traded orders are removed from this map.
+// Any remaining cleanup cases will be handled in week 2.
 unordered_map<int,Order>mp;
 struct Trade{
     int buyOrderId;
@@ -124,6 +146,7 @@ void addOrder(const Order &o){
         asks[o.price].push_back(o);
     }
 }
+// Every trade happens at the price of the order already present in the book. For market orders, we use LLONG_MAX (BUY) or 0 (SELL) so they can match at any available price. If some quantity is still left, we add it to the book only for limit orders.
 void processOrder(Order o,bool is_market){
     if(o.side==Side::Buy){
         while(!asks.empty()){
@@ -134,15 +157,23 @@ void processOrder(Order o,bool is_market){
             }
             while(o.quantity>0 and !orders.empty()){
                 Order &ord=orders.front();
-                if(o.quantity<ord.quantity){
+                if(o.quantity<=ord.quantity){
                     Trades.push_back({o.id,ord.id,ord.price,o.quantity});
                     ord.quantity-=o.quantity;
                     o.quantity=0;
+                    if(!ord.quantity){
+                        mp.erase(ord.id);
+                        orders.pop_front();
+                    }
+                    else mp[ord.id].quantity=ord.quantity;                    
+                    auto it=mp.find(o.id);
+                    mp.erase(it);
                     break;
                 }
                 else{
                     Trades.push_back({o.id,ord.id,ord.price,ord.quantity});
                     o.quantity-=ord.quantity;
+                    mp.erase(ord.id);
                     orders.pop_front();
                 }
             }
@@ -163,15 +194,22 @@ void processOrder(Order o,bool is_market){
             }
             while(o.quantity>0 and !orders.empty()){
                 Order &ord=orders.front();
-                if(o.quantity<ord.quantity){
+                if(o.quantity<=ord.quantity){
                     Trades.push_back({ord.id,o.id,ord.price,o.quantity});
                     ord.quantity-=o.quantity;
                     o.quantity=0;
+                    if(!ord.quantity){
+                        mp.erase(ord.id);
+                        orders.pop_front();
+                    }
+                    else mp[ord.id].quantity=ord.quantity;
+                    mp.erase(o.id);
                     break;
                 }
                 else{
                     Trades.push_back({ord.id,o.id,ord.price,ord.quantity});
                     o.quantity-=ord.quantity;
+                    mp.erase(ord.id);
                     orders.pop_front();
                 }
             }
@@ -185,6 +223,9 @@ void processOrder(Order o,bool is_market){
     }
     if(o.quantity>0 and !is_market){
         addOrder(o);
+    }
+    else{
+        mp.erase(o.id);
     }
     return;
 }
@@ -277,10 +318,10 @@ void printTrades(){
 }
 
 // If the prices are negative or zero the order will be rejected
-// Prices which are not multiples of tick_size will be rejected
+// Prices that are not multiples of one tick (0.01) will be rejected.
 // Prices which are greater than LLONG_MAX will be rejected
 // Prices which are not having decimal places or whole number places are considered as valid prices
-// As cancel order is not an new market order we are not assigning a new id to that order
+// A cancel command is not an order, so it does not get a new order ID.
 
 int main(){
     ios::sync_with_stdio(false);

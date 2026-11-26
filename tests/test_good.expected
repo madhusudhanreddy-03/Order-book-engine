@@ -1,0 +1,8 @@
+TRADE buy #1 sell #2 10 @ 101.05
+TRADE buy #3 sell #2 10 @ 99.50
+TRADE buy #3 sell #4 5 @ 100.00
+BIDS:
+#3 BUY 15 @ 100.00
+#6 BUY 10 @ 5.00
+#5 BUY 10 @ 0.50
+ASKS:
