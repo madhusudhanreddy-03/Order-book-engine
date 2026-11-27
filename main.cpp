@@ -399,6 +399,8 @@ int main(){
     auto end1=chrono::steady_clock::now();
     vector<long long>lat;
     lat.reserve(commands.size());
+    Trades.reserve(commands.size());
+    mp.reserve(commands.size());
     auto start2=chrono::steady_clock::now();
     for(auto &c:commands){
         if(c.type==0){
