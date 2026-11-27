@@ -26,6 +26,9 @@ int main(int argc,char* argv[]){
     mt19937 rng(seed);
     // Generate between 1 and 30 commands
     int n=1+rng()%30;
+    if(argc>=3){
+        n=atoi(argv[2]);
+    }
     // Only BUY and SELL commands get an ID
     int order_count=0;
     for(int i=0;i<n;i++){

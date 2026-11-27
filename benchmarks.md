@@ -1,0 +1,12 @@
+## Baseline (Nov 27)
+- Input: gen.exe seed 1, 1,000,000 lines (820,416 orders, rest cancels)
+- Measures: reading + parsing + matching (end to end)
+- Median of 5 runs: 1.391 s → ~590,000 orders/sec
+- Range: 1.124 – 1.674 s
+
+## Load and matching timed separately (Nov 27)
+- Same input: gen.exe seed 1, 1,000,000 lines, 820,416 orders
+- Load (read + parse), median of 5: 0.316 s
+- Matching only, median of 5: 0.843 s (range 0.637 – 1.039)
+- ≈ 973,000 orders/sec, ≈ 1.03 µs per order on average
+

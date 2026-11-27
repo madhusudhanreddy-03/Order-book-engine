@@ -51,6 +51,13 @@ struct Trade{
     int quantity;
 };
 vector<Trade>Trades;
+struct Command{
+    int type;        // 0 = order, 1 = cancel, 2 = invalid order, 3 = invalid price
+    Order o;         // used when type is 0
+    bool is_market;  // used when type is 0
+    int cancel_id;   // used when type is 1
+};
+vector<Command>commands;
 string formatPrice(long long price){
     string value;
     long long whole=price/ticks_per_rupee;
@@ -166,8 +173,7 @@ void processOrder(Order o,bool is_market){
                         orders.pop_front();
                     }
                     else mp[ord.id].quantity=ord.quantity;                    
-                    auto it=mp.find(o.id);
-                    mp.erase(it);
+                    mp.erase(o.id);
                     break;
                 }
                 else{
@@ -343,11 +349,14 @@ int main(){
 
     string cmd;
     int id_assign=1;
+    commands.reserve(1000000);
+    auto start1=chrono::steady_clock::now();
     while(cin>>cmd){
         if(cmd=="CANCEL"){
             int id;
             cin>>id;
-            cancelOrder(id);
+            commands.push_back({1,Order{},false,id});
+            //cancelOrder(id);
             continue;
         }
         string price_str;
@@ -359,11 +368,13 @@ int main(){
         id_assign++;
         // assigning id to every order even if it is not valid  
         if(!validate_order(side_str,quantity)){
-            cout<<"Invalid order\n";
+            commands.push_back({2,Order{},false,0});
+            //cout<<"Invalid order\n";
             continue;
         }
         if(!parse_price(price_str,o.price)){
-            cout<<"Invalid price\n";
+            commands.push_back({3,Order{},false,0});
+            //cout<<"Invalid price\n";
             continue;
         }
         bool is_market=false;
@@ -381,9 +392,36 @@ int main(){
         else if(side_str=="SELL"){
             o.side=Side::Sell;
         }
-        mp[o.id]=o;
-        processOrder(o,is_market);
+        commands.push_back({0,o,is_market,0});
+        //mp[o.id]=o;
+        //processOrder(o,is_market);
     }
+    auto end1=chrono::steady_clock::now();
+    auto start2=chrono::steady_clock::now();
+    for(auto &c:commands){
+        if(c.type==0){
+            mp[c.o.id]=c.o;
+            processOrder(c.o,c.is_market);
+        }
+        else if(c.type==1){
+            cancelOrder(c.cancel_id);
+        }
+        else if(c.type==2){
+            cout<<"Invalid order\n";
+        }
+        else if(c.type==3){
+            cout<<"Invalid price\n";
+        }
+    }
+    auto end2=chrono::steady_clock::now();
     printTrades();
     print_book();
+    double secs1=chrono::duration<double>(end1-start1).count();
+    double secs2=chrono::duration<double>(end2-start2).count();
+    long long total_orders=id_assign-1;
+    cerr<<"Load time: "<<secs1<<" seconds\n";
+    cerr<<"Matching time: "<<secs2<<" seconds\n";
+    if(secs2>0){
+        cerr<<"Orders per second: "<<(long long)total_orders/secs2<<'\n';
+    }
 }
