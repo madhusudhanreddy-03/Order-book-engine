@@ -397,11 +397,16 @@ int main(){
         //processOrder(o,is_market);
     }
     auto end1=chrono::steady_clock::now();
+    vector<long long>lat;
+    lat.reserve(commands.size());
     auto start2=chrono::steady_clock::now();
     for(auto &c:commands){
         if(c.type==0){
+            auto t1=chrono::steady_clock::now();
             mp[c.o.id]=c.o;
             processOrder(c.o,c.is_market);
+            auto t2=chrono::steady_clock::now();
+            lat.push_back(chrono::duration_cast<chrono::nanoseconds>(t2-t1).count());
         }
         else if(c.type==1){
             cancelOrder(c.cancel_id);
@@ -414,6 +419,16 @@ int main(){
         }
     }
     auto end2=chrono::steady_clock::now();
+    sort(lat.begin(),lat.end());
+    int sz=lat.size();
+    double p50=lat[(int)(0.50*sz)]/1000.0;
+    double p99=lat[(int)(0.99*sz)]/1000.0;
+    double p999=lat[(int)(0.999*sz)]/1000.0;
+    double mx=lat.back()/1000.0;
+    cerr<<"P50 latency: "<<p50<<" us\n";
+    cerr<<"P99 latency: "<<p99<<" us\n";
+    cerr<<"P99.9 latency: "<<p999<<" us\n";
+    cerr<<"Maximum latency: "<<mx<<" us\n";
     printTrades();
     print_book();
     double secs1=chrono::duration<double>(end1-start1).count();

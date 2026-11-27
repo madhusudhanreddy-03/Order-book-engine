@@ -10,3 +10,10 @@
 - Matching only, median of 5: 0.843 s (range 0.637 – 1.039)
 - ≈ 973,000 orders/sec, ≈ 1.03 µs per order on average
 
+## Per-order latency (Nov 27)
+- Same input, 820,416 orders, median of 5 runs
+- P50 0.3 us | P99 1.0 us | P99.9 3.4 us | Max ~6.4 ms
+- Matching ≈ 1.2M orders/sec (runs vary 0.56–1.02 s)
+- Windows clock resolution ~100 ns, so latencies are rounded to 0.1 us
+- Max is dominated by rare stalls: OS pauses, plus vector/hash-map growth inside the timed region
+
