@@ -44,7 +44,12 @@ map<long long,list<Order>>asks;
 // This map stores each order using its ID, making cancellation faster without searching the entire order book
 // Fully traded orders are removed from this map.
 // Any remaining cleanup cases will be handled in week 2.
-unordered_map<int,Order>mp;
+struct Loc{
+    Side side;
+    long long price;
+    list<Order>::iterator it;
+};
+unordered_map<int,Loc>mp;
 struct Trade{
     int buyOrderId;
     int sellOrderId;
@@ -149,9 +154,15 @@ bool validate_order(const string &side_str,int quantity){
 void addOrder(const Order &o){
     if(o.side==Side::Buy){
         bids[o.price].push_back(o);
+        auto &row=bids[o.price];
+        row.push_back(o);
+        mp[o.id]={o.side,o.price,prev(row.end())};
     }
     else{
         asks[o.price].push_back(o);
+        auto &row=asks[o.price];
+        row.push_back(o);
+        mp[o.id]={o.side,o.price,prev(row.end())};
     }
 }
 // Every trade happens at the price of the order already present in the book. For market orders, we use LLONG_MAX (BUY) or 0 (SELL) so they can match at any available price. If some quantity is still left, we add it to the book only for limit orders.
@@ -173,7 +184,6 @@ void processOrder(Order o,bool is_market){
                         mp.erase(ord.id);
                         orders.pop_front();
                     }
-                    else mp[ord.id].quantity=ord.quantity;                    
                     mp.erase(o.id);
                     break;
                 }
@@ -209,7 +219,6 @@ void processOrder(Order o,bool is_market){
                         mp.erase(ord.id);
                         orders.pop_front();
                     }
-                    else mp[ord.id].quantity=ord.quantity;
                     mp.erase(o.id);
                     break;
                 }
@@ -237,72 +246,38 @@ void processOrder(Order o,bool is_market){
     return;
 }
 void cancelOrder(int id){
-    if(!mp.count(id)){
+    auto it=mp.find(id);
+    if(it==mp.end()){
         cout<<"Cancel failed: #"<<id<<" not found\n";
         return;
     }
-    auto &o=mp[id];
-    if(o.side==Side::Buy){
-        long long price=o.price;
-        auto row=bids.find(price);
+    Loc loc=it->second;
+    if(loc.side==Side::Buy){
+        auto row=bids.find(loc.price);
         if(row==bids.end()){
             cout<<"Cancel failed: #"<<id<<" not found\n";
-            return; // That order has already been fully traded
+            return;
         }
         auto &orders=row->second;
-        if(orders.empty()){
-            bids.erase(row);
-            cout<<"Cancel failed: #"<<id<<" not found\n";
-            return;
-        }
-        bool found=false;
-        for(auto it=orders.begin();it!=orders.end();++it){
-            if(it->id==id){
-                found=true;
-                orders.erase(it);
-                break;
-            }
-        }
-        if(!found){
-            cout<<"Cancel failed: #"<<id<<" not found\n";
-            return;
-        }
+        orders.erase(loc.it);
         if(orders.empty()){
             bids.erase(row);
         }
     }
     else{
-        long long price=o.price;
-        auto row=asks.find(price);
+        auto row=asks.find(loc.price);
         if(row==asks.end()){
             cout<<"Cancel failed: #"<<id<<" not found\n";
-           return; // That order has already been fully traded
+            return;
         }
         auto &orders=row->second;
-        if(orders.empty()){
-            asks.erase(row);
-            cout<<"Cancel failed: #"<<id<<" not found\n";
-            return;
-        }
-        bool found=false;
-        for(auto it=orders.begin();it!=orders.end();++it){
-            if(it->id==id){
-                found=true;
-                orders.erase(it);
-                break;
-            }
-        }
-        if(!found){
-            cout<<"Cancel failed: #"<<id<<" not found\n";
-            return;
-        }
+        orders.erase(loc.it);
         if(orders.empty()){
             asks.erase(row);
         }
     }
     cancel_ok++;
-    mp.erase(id);
-    return;
+    mp.erase(it);
 }
 void print_book(){
     cout<<"BIDS:\n";
@@ -395,8 +370,6 @@ int main(){
             o.side=Side::Sell;
         }
         commands.push_back({0,o,is_market,0});
-        //mp[o.id]=o;
-        //processOrder(o,is_market);
     }
     auto end1=chrono::steady_clock::now();
     vector<long long>lat,lat_cancel;
@@ -408,7 +381,6 @@ int main(){
     for(auto &c:commands){
         if(c.type==0){
             auto t1=chrono::steady_clock::now();
-            mp[c.o.id]=c.o;
             processOrder(c.o,c.is_market);
             auto t2=chrono::steady_clock::now();
             lat.push_back(chrono::duration_cast<chrono::nanoseconds>(t2-t1).count());

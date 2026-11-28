@@ -32,3 +32,14 @@
 - Cancel latency, median of 5: P50 43.9 us | P99 552 us | P99.9 954 us | Max 12.7 ms
 - Total matching time: 8.07 s
 - On the normal input (big2.txt), cancels were < 0.1 us: rows there are short
+
+## Cancel: direct erase with saved list iterator (Nov 28)
+- Change: mp stores {side, price, list iterator}; cancel erases directly instead of searching the row
+- Deep book (gen_deep seed 1), cancel latency, median of 5, before → after:
+  - P50: 43.9 → 0.5 us (~88x)
+  - P99: 552 → 1.1 us (~500x)
+  - P99.9: 954 → 2.6 us (~370x)
+  - Max: 12.7 ms → 145 us
+  - Total matching: 8.07 s → 0.090 s (~90x)
+- Complexity: O(log P + k) → O(log P)
+
