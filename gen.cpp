@@ -37,7 +37,15 @@ int main(int argc,char* argv[]){
         if(type<18){
             // The ID may belong to an existing order or may belong to a completed order which results in cancellation failed 
             // The ID may also be greater than the number of orders came so far in that case the order will result in cancellation failed
-            int id=1+rng()%(order_count+2);
+            // Half the cancels target one of the last 100 orders, which are likely still resting, so the row search actually runs
+            int id;
+            if(rng()%2==0 and order_count>0){
+                int back=rng()%min(order_count,100);
+                id=order_count-back;
+            }
+            else{
+                id=1+rng()%(order_count+2);
+            }
             cout<<"CANCEL "<<id<<'\n';
         }
         // Generate an invalid order with around 5% probability

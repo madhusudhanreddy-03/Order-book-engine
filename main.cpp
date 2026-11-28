@@ -23,6 +23,7 @@ Output:
 */
 
 const long long ticks_per_rupee=100;
+long long cancel_ok=0;
 
 enum class Side{ 
     Buy,
@@ -299,6 +300,7 @@ void cancelOrder(int id){
             asks.erase(row);
         }
     }
+    cancel_ok++;
     mp.erase(id);
     return;
 }
@@ -397,8 +399,9 @@ int main(){
         //processOrder(o,is_market);
     }
     auto end1=chrono::steady_clock::now();
-    vector<long long>lat;
+    vector<long long>lat,lat_cancel;
     lat.reserve(commands.size());
+    lat_cancel.reserve(commands.size());
     Trades.reserve(commands.size());
     mp.reserve(commands.size());
     auto start2=chrono::steady_clock::now();
@@ -411,7 +414,10 @@ int main(){
             lat.push_back(chrono::duration_cast<chrono::nanoseconds>(t2-t1).count());
         }
         else if(c.type==1){
+            auto t1=chrono::steady_clock::now();
             cancelOrder(c.cancel_id);
+            auto t2=chrono::steady_clock::now();
+            lat_cancel.push_back(chrono::duration_cast<chrono::nanoseconds>(t2-t1).count());
         }
         else if(c.type==2){
             cout<<"Invalid order\n";
@@ -422,15 +428,27 @@ int main(){
     }
     auto end2=chrono::steady_clock::now();
     sort(lat.begin(),lat.end());
+    sort(lat_cancel.begin(),lat_cancel.end());
     int sz=lat.size();
     double p50=lat[(int)(0.50*sz)]/1000.0;
     double p99=lat[(int)(0.99*sz)]/1000.0;
     double p999=lat[(int)(0.999*sz)]/1000.0;
     double mx=lat.back()/1000.0;
+    int sz1=lat.size();
+    double P50=lat_cancel[(int)(0.50*sz1)]/1000.0;
+    double P99=lat_cancel[(int)(0.99*sz1)]/1000.0;
+    double P999=lat_cancel[(int)(0.999*sz1)]/1000.0;
+    double mx1=lat_cancel.back()/1000.0;
     cerr<<"P50 latency: "<<p50<<" us\n";
     cerr<<"P99 latency: "<<p99<<" us\n";
     cerr<<"P99.9 latency: "<<p999<<" us\n";
     cerr<<"Maximum latency: "<<mx<<" us\n";
+    cerr<<"Cancels: "<<lat_cancel.size()<<'\n';
+    cerr<<"Cancel_ok: "<<cancel_ok<<'\n';
+    cerr<<"P50 latency: "<<P50<<" us\n";
+    cerr<<"P99 latency: "<<P99<<" us\n";
+    cerr<<"P99.9 latency: "<<P999<<" us\n";
+    cerr<<"Maximum latency: "<<mx1<<" us\n";
     printTrades();
     print_book();
     double secs1=chrono::duration<double>(end1-start1).count();

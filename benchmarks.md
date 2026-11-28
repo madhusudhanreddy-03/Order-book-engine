@@ -27,3 +27,8 @@
   - Throughput: ~1.20M → ~1.32M orders/sec
 - Conclusion: vector growth and hash-map rehashing inside the timed loop caused the ms-level spikes
 
+## Cancel: row search, deep book (Nov 28)
+- Input: gen_deep seed 1: 100,000 resting orders on 10 price levels (~10,000 per row), then 100,000 shuffled cancels (all succeed)
+- Cancel latency, median of 5: P50 43.9 us | P99 552 us | P99.9 954 us | Max 12.7 ms
+- Total matching time: 8.07 s
+- On the normal input (big2.txt), cancels were < 0.1 us: rows there are short
